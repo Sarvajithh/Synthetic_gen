@@ -1,1 +1,0 @@
-{"window_size": 24, "n_features": 7, "d_model": 64, "n_heads": 4, "n_layers": 3, "timesteps": 200, "beta_start": 9.999999747378752e-05, "beta_end": 0.019999999552965164}
