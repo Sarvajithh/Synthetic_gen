@@ -17,6 +17,31 @@ def get_device(device=None):
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def _contiguous_training_series(X, n_features):
+    """Accept a raw (time, features) series or recover stride-1 windows safely."""
+    X = np.asarray(X, dtype=np.float64)
+    if X.ndim == 3:
+        if X.shape[0] == 0 or X.shape[2] != n_features:
+            raise ValueError("Invalid training windows")
+        if X.shape[0] > 1 and not np.allclose(X[:-1, 1:, :], X[1:, :-1, :], equal_nan=False):
+            raise ValueError("Statistical models require raw data or exactly overlapping stride-1 windows")
+        X = np.concatenate([X[0], X[1:, -1, :]], axis=0)
+    if X.ndim != 2 or X.shape[1] != n_features or X.shape[0] < 10:
+        raise ValueError("Expected at least 10 contiguous observations with shape (time, features)")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("Training series contains non-finite values")
+    return X
+
+
+def _validate_neural_training_windows(X, window_size, n_features):
+    X = np.asarray(X)
+    if X.ndim != 3 or X.shape[0] == 0 or X.shape[1:] != (window_size, n_features):
+        raise ValueError(f"Expected non-empty input shaped (n, {window_size}, {n_features})")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("Training windows contain non-finite values")
+    return X
+
+
 class MinMaxScaler:
     def __init__(self):
         self.min = None
@@ -123,10 +148,12 @@ class TimeGAN:
         return torch.rand(batch_size, self.window_size, self.n_features, device=self.device)
 
     def fit(self, X, epochs=1000, batch_size=128, lr=1e-3, verbose=True, log_every=100):
-        assert X.ndim == 3 and X.shape[1] == self.window_size and X.shape[2] == self.n_features
+        X = _validate_neural_training_windows(X, self.window_size, self.n_features)
+        if len(X) == 0 or batch_size < 1:
+            raise ValueError("Training data and batch_size must be non-empty")
         X_scaled = self.scaler.fit_transform(X.astype(np.float32))
         tensor_X = torch.tensor(X_scaled, dtype=torch.float32)
-        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=True)
+        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=False)
 
         opt_e = torch.optim.Adam(list(self.embedder.parameters()) + list(self.recovery.parameters()), lr=lr)
         opt_g = torch.optim.Adam(list(self.generator.parameters()) + list(self.supervisor.parameters()), lr=lr)
@@ -238,7 +265,6 @@ class TimeGAN:
         self.supervisor.train()
         self.recovery.train()
         samples = np.concatenate(outputs, axis=0)
-        samples = np.clip(samples, 0.0, 1.0)
         return self.scaler.inverse_transform(samples)
 
     def save(self, path):
@@ -388,10 +414,10 @@ class TimeVAE:
         return mu + eps * std
 
     def fit(self, X, epochs=500, batch_size=128, lr=1e-3, verbose=True, log_every=50):
-        assert X.ndim == 3 and X.shape[1] == self.window_size and X.shape[2] == self.n_features
+        X = _validate_neural_training_windows(X, self.window_size, self.n_features)
         X_scaled = self.scaler.fit_transform(X.astype(np.float32))
         tensor_X = torch.tensor(X_scaled, dtype=torch.float32)
-        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=True)
+        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=False)
         params = list(self.encoder.parameters()) + list(self.decoder.parameters())
         opt = torch.optim.Adam(params, lr=lr)
 
@@ -429,7 +455,6 @@ class TimeVAE:
             remaining -= bsz
         self.decoder.train()
         samples = np.concatenate(outputs, axis=0)
-        samples = np.clip(samples, 0.0, 1.0)
         return self.scaler.inverse_transform(samples)
 
     def save(self, path):
@@ -537,10 +562,10 @@ class DiffusionTS:
         return sqrt_ac * x0 + sqrt_om * noise
 
     def fit(self, X, epochs=500, batch_size=128, lr=1e-4, verbose=True, log_every=50):
-        assert X.ndim == 3 and X.shape[1] == self.window_size and X.shape[2] == self.n_features
+        X = _validate_neural_training_windows(X, self.window_size, self.n_features)
         X_scaled = self.scaler.fit_transform(X.astype(np.float32)) * 2 - 1
         tensor_X = torch.tensor(X_scaled, dtype=torch.float32)
-        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=True)
+        loader = DataLoader(TensorDataset(tensor_X), batch_size=batch_size, shuffle=True, drop_last=False)
         opt = torch.optim.Adam(self.model.parameters(), lr=lr)
 
         for epoch in range(epochs):
@@ -568,7 +593,7 @@ class DiffusionTS:
         bsz = x_t.size(0)
         t = torch.full((bsz,), t_index, device=self.device, dtype=torch.long)
         x0_pred = self.model(x_t, t)
-        x0_pred = torch.clamp(x0_pred, -1.0, 1.0)
+        # Do not censor tail values at the training range; calibration is measured downstream.
 
         alpha_t = self.alphas[t_index]
         alpha_cumprod_t = self.alphas_cumprod[t_index]
@@ -604,7 +629,7 @@ class DiffusionTS:
             remaining -= bsz
         self.model.train()
         samples = np.concatenate(outputs, axis=0)
-        samples = (np.clip(samples, -1.0, 1.0) + 1) / 2
+        samples = (samples + 1) / 2
         return self.scaler.inverse_transform(samples)
 
     def save(self, path):
@@ -734,7 +759,7 @@ class UnivariateStableGARCH:
         resid = abs_eps - sigma
         return float(np.sum(resid ** 2))
 
-    def fit(self, returns):
+    def fit(self, returns, tail_fraction=0.1):
         returns = np.asarray(returns, dtype=np.float64).ravel()
         self.mu = float(np.median(returns))
         eps = returns - self.mu
@@ -758,7 +783,7 @@ class UnivariateStableGARCH:
         sigma = self._avgarch_sigma(abs_eps, self.omega, self.alpha_g, self.beta_g)
         z = eps / sigma
 
-        stable_params = estimate_stable_params(z)
+        stable_params = estimate_stable_params(z, tail_fraction=tail_fraction)
         self.alpha = stable_params["alpha"]
         self.beta_z = stable_params["beta_z"]
         self.sigma_z = stable_params["sigma_z"]
@@ -823,10 +848,10 @@ class StableGARCH:
         self._fitted = False
 
     def fit(self, X, verbose=True):
-        assert X.ndim == 3 and X.shape[1] == self.window_size and X.shape[2] == self.n_features
+        X = _contiguous_training_series(X, self.n_features)
         for f in range(self.n_features):
-            series = X[:, :, f].reshape(-1)
-            self.asset_models[f].fit(series)
+            series = X[:, f]
+            self.asset_models[f].fit(series, tail_fraction=self.tail_fraction)
             if verbose:
                 m = self.asset_models[f]
                 print(f"[StableGARCH] asset {f}: alpha={m.alpha:.3f} beta_z={m.beta_z:.3f} "
@@ -1013,9 +1038,9 @@ class StudentTARIMAGARCH:
         self._fitted = False
 
     def fit(self, X, verbose=True):
-        assert X.ndim == 3 and X.shape[1] == self.window_size and X.shape[2] == self.n_features
+        X = _contiguous_training_series(X, self.n_features)
         for f in range(self.n_features):
-            series = X[:, :, f].reshape(-1)
+            series = X[:, f]
             self.asset_models[f].fit(series)
             if verbose:
                 m = self.asset_models[f]

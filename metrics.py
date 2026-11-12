@@ -11,8 +11,29 @@ def get_device(device=None):
 
 
 def flatten_windows(X):
+    """Pool observations for pointwise distribution metrics only.
+
+    Joining overlapping windows fabricates transitions, so temporal metrics
+    must operate window-by-window instead.
+    """
     n_windows, window_size, n_features = X.shape
     return X.reshape(n_windows * window_size, n_features)
+
+
+def _windowed_series(X):
+    X = np.asarray(X)
+    if X.ndim != 3 or X.shape[0] == 0 or X.shape[1] < 2:
+        raise ValueError("Expected non-empty windows with shape (n_windows, time, features)")
+    if not np.all(np.isfinite(X)):
+        raise ValueError("Metric input contains non-finite values")
+    return X
+
+
+def _mean_window_acf(X, max_lag):
+    X = _windowed_series(X)
+    max_lag = min(int(max_lag), X.shape[1] - 1)
+    series = X.transpose(2, 0, 1).reshape(-1, X.shape[1])
+    return np.mean([_autocorr(row, max_lag) for row in series], axis=0)
 
 
 class BaseMetric:
@@ -109,7 +130,10 @@ class DiscriminativeScoreMetric(BaseMetric):
 
     def compute(self, real, synthetic):
         torch.manual_seed(self.seed)
+        np.random.seed(self.seed)
         n = min(real.shape[0], synthetic.shape[0])
+        if n < 4:
+            raise ValueError("At least four real and synthetic windows are required")
         real, synthetic = real[:n], synthetic[:n]
         n_features = real.shape[2]
 
@@ -169,13 +193,14 @@ class RawReturnACFErrorMetric(BaseMetric):
         self.max_lag = max_lag
 
     def compute(self, real, synthetic):
-        real_flat = flatten_windows(real)
-        synth_flat = flatten_windows(synthetic)
-        n_features = real_flat.shape[1]
+        real, synthetic = _windowed_series(real), _windowed_series(synthetic)
+        if real.shape[2] != synthetic.shape[2]:
+            raise ValueError("Real and synthetic feature counts differ")
+        n_features = real.shape[2]
         errors = []
         for f in range(n_features):
-            acf_r = _autocorr(real_flat[:, f], self.max_lag)
-            acf_s = _autocorr(synth_flat[:, f], self.max_lag)
+            acf_r = _mean_window_acf(real[:, :, f:f + 1], self.max_lag)
+            acf_s = _mean_window_acf(synthetic[:, :, f:f + 1], self.max_lag)
             errors.append(np.sum(np.abs(acf_r - acf_s)))
         return float(np.mean(errors))
 
@@ -188,15 +213,14 @@ class VolatilityClusteringErrorMetric(BaseMetric):
         self.use_absolute = use_absolute
 
     def compute(self, real, synthetic):
-        real_flat = flatten_windows(real)
-        synth_flat = flatten_windows(synthetic)
-        n_features = real_flat.shape[1]
+        real, synthetic = _windowed_series(real), _windowed_series(synthetic)
+        n_features = real.shape[2]
         errors = []
         for f in range(n_features):
-            r = np.abs(real_flat[:, f]) if self.use_absolute else real_flat[:, f] ** 2
-            s = np.abs(synth_flat[:, f]) if self.use_absolute else synth_flat[:, f] ** 2
-            acf_r = _autocorr(r, self.max_lag)
-            acf_s = _autocorr(s, self.max_lag)
+            r = np.abs(real[:, :, f:f + 1]) if self.use_absolute else real[:, :, f:f + 1] ** 2
+            s = np.abs(synthetic[:, :, f:f + 1]) if self.use_absolute else synthetic[:, :, f:f + 1] ** 2
+            acf_r = _mean_window_acf(r, self.max_lag)
+            acf_s = _mean_window_acf(s, self.max_lag)
             errors.append(np.sum(np.abs(acf_r - acf_s)))
         return float(np.mean(errors))
 
@@ -280,17 +304,16 @@ class SpectralErrorMetric(BaseMetric):
         self.use_squared = use_squared
 
     def compute(self, real, synthetic):
-        real_flat = flatten_windows(real)
-        synth_flat = flatten_windows(synthetic)
-        n = min(len(real_flat), len(synth_flat))
-        real_flat, synth_flat = real_flat[:n], synth_flat[:n]
-        n_features = real_flat.shape[1]
+        real, synthetic = _windowed_series(real), _windowed_series(synthetic)
+        if real.shape[1] != synthetic.shape[1] or real.shape[2] != synthetic.shape[2]:
+            raise ValueError("Real and synthetic window dimensions differ")
+        n_features = real.shape[2]
         errors = []
         for f in range(n_features):
-            r = real_flat[:, f] ** 2 if self.use_squared else real_flat[:, f]
-            s = synth_flat[:, f] ** 2 if self.use_squared else synth_flat[:, f]
-            f_r = _periodogram(r)
-            f_s = _periodogram(s)
+            r = real[:, :, f] ** 2 if self.use_squared else real[:, :, f]
+            s = synthetic[:, :, f] ** 2 if self.use_squared else synthetic[:, :, f]
+            f_r = np.mean([_periodogram(row) for row in r], axis=0)
+            f_s = np.mean([_periodogram(row) for row in s], axis=0)
             num = np.sum(np.abs(f_r - f_s))
             den = np.sum(f_r) + self.eps
             errors.append(num / den)
@@ -395,13 +418,13 @@ class LeverageEffectErrorMetric(BaseMetric):
         return out
 
     def compute(self, real, synthetic):
-        real_flat = flatten_windows(real)
-        synth_flat = flatten_windows(synthetic)
-        n_features = real_flat.shape[1]
+        real, synthetic = _windowed_series(real), _windowed_series(synthetic)
+        n_features = real.shape[2]
         errors = []
         for f in range(n_features):
-            lev_r = self._leverage(real_flat[:, f], self.max_lag)
-            lev_s = self._leverage(synth_flat[:, f], self.max_lag)
+            max_lag = min(self.max_lag, real.shape[1] - 1, synthetic.shape[1] - 1)
+            lev_r = np.mean([self._leverage(row, max_lag) for row in real[:, :, f]], axis=0)
+            lev_s = np.mean([self._leverage(row, max_lag) for row in synthetic[:, :, f]], axis=0)
             errors.append(np.sum(np.abs(lev_r - lev_s)))
         return float(np.mean(errors))
 

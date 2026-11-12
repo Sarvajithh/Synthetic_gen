@@ -6,3 +6,5 @@ matplotlib
 scipy
 yfinance
 statsmodels
+pyarrow
+ipykernel
