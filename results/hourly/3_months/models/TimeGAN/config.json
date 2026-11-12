@@ -1,0 +1,1 @@
+{"window_size": 24, "n_features": 7, "hidden_dim": 24, "num_layers": 3, "rnn_type": "gru", "gamma": 1.0}

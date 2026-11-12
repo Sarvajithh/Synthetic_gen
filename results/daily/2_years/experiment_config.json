@@ -1,0 +1,24 @@
+{
+  "experiment_id": "daily_2_years",
+  "frequency": "daily",
+  "duration_label": "2_years",
+  "tickers": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "TLT",
+    "GLD",
+    "USO",
+    "EEM"
+  ],
+  "interval": "1d",
+  "train_start": "2022-11-02 00:00:00",
+  "train_end": "2024-11-02 00:00:00",
+  "test_start": "2024-11-02 00:00:00",
+  "test_end": "2026-11-02 00:00:00",
+  "window_size": 24,
+  "n_train_windows": 480,
+  "n_test_windows": 476,
+  "n_synthetic": 476,
+  "seed": 42
+}

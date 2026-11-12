@@ -1,0 +1,24 @@
+{
+  "experiment_id": "hourly_6_months",
+  "frequency": "hourly",
+  "duration_label": "6_months",
+  "tickers": [
+    "SPY",
+    "QQQ",
+    "IWM",
+    "TLT",
+    "GLD",
+    "USO",
+    "EEM"
+  ],
+  "interval": "1h",
+  "train_start": "2025-11-02 00:00:00",
+  "train_end": "2026-05-02 00:00:00",
+  "test_start": "2026-05-02 00:00:00",
+  "test_end": "2026-11-02 00:00:00",
+  "window_size": 24,
+  "n_train_windows": 827,
+  "n_test_windows": 859,
+  "n_synthetic": 859,
+  "seed": 42
+}

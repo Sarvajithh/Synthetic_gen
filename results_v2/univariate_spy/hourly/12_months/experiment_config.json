@@ -1,0 +1,17 @@
+{
+  "experiment_id": "univariate_spy_hourly_12_months",
+  "data_config": "univariate_spy",
+  "frequency": "hourly",
+  "train_start": "2025-05-03 00:00:00",
+  "train_end": "2026-05-03 00:00:00",
+  "test_start": "2026-05-03 00:00:00",
+  "test_end": "2026-11-03 00:00:00",
+  "window_size": 24,
+  "window_stride": 1,
+  "assets": [
+    "SPY"
+  ],
+  "seed": 42,
+  "n_train_windows": 1705,
+  "n_test_windows": 866
+}

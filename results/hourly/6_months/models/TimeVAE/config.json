@@ -1,0 +1,1 @@
+{"window_size": 24, "n_features": 7, "latent_dim": 8, "hidden_channels": [64, 32, 16], "use_trend": true, "use_seasonality": true, "n_seasons": 2, "reconstruction_weight": 3.0}
