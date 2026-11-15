@@ -1,33 +1,47 @@
-# Benchmark ranking protocol
+# Ranking and visualization protocol
 
-## Project scoring methods
+## Workflow
 
-`main_v2.ipynb` reports three complementary project rankings for every experiment:
+`main_v2.ipynb` runs in this order: (1) load matching cached runs or train missing/stale experiments; (2) evaluate all configured metrics and score each experiment; (3) display the four setting-specific final tables and metric summaries; and (4) create summary plots. `run_experiment` does not call plotting functions. The diagnostic smoke test is disabled by default.
 
-1. **Benchmark-Normalized Composite Score** — the proposed weighted score, renamed from the informal friend's-score label. Each metric error is normalized against an iid Gaussian reference estimated from the training data; predictive ratios are transformed with `abs(log(ratio))`. The clusters are distribution/tails (35%), temporal structure (35%), dependence (20%), and fidelity/utility (10%), with a 15% worst-cluster penalty. Lower is better. In univariate runs, correlation and portfolio VaR are omitted and remaining weights renormalized.
-2. **Pareto Front** — nondominated sorting over the available cluster scores, all minimized. Front 1 contains the models for which no other model is at least as good in every included objective and better in one. Higher-numbered fronts are dominated by a preceding front. Pareto fronts preserve trade-offs rather than collapsing them into one scalar.
-3. **Lexicographic Rank** — metrics are sorted by the declared priority: distribution/tails, downstream predictive usefulness, temporal structure, multivariate dependence when applicable, then discriminative score. An earlier component takes priority over every later component.
+The four settings are univariate SPY hourly, univariate SPY daily, multivariate hourly, and multivariate daily. Every final table reserves five model rows. A model without successful evaluation in a setting receives NA ranks for that setting.
 
-These methods are complementary views, not acceptance criteria. The Gaussian reference is a normalization baseline, not a realism target or pass/fail threshold. All raw metrics remain in the result tables.
+## Project scoring and rank conversion
 
-## Literature comparison
+The teammate-proposed benchmark-normalized composite is computed per experiment. Each metric error is normalized against an iid Gaussian reference from training-only moments; predictive ratios are transformed with `abs(log(ratio))`. Cluster weights are distribution/tails 35%, temporal structure 35%, dependence 20%, and fidelity/utility 10%, with a 15% worst-cluster penalty. Lower scores are better. Univariate experiments omit dependence and portfolio VaR, then renormalize active cluster weights.
 
-`rank_results.py` keeps literature ranks **source-specific**. It does not average or otherwise pool them into a universal literature leaderboard: datasets, measures, candidate generators, and rank definitions differ across papers. Reported values are labeled as reported; values calculated from paper tables are labeled derived and include their basis and candidate-set size. Model family/architecture matches are explicitly marked as analogues.
+Three project ranking methods are converted to unique ordinal ranks within every experiment (1 = best):
 
-The comparison covers all five project generators: TimeGAN, TimeVAE, DiffusionTS, StudentTARIMAGARCH, and StableGARCH. A blank source rank means no rank for that project model was established in that source. In particular, StableGARCH has no comparative generator rank in the selected sources. This is preferable to inventing a rank from a methods paper.
+- **Composite Rank:** ascending composite score. Exact ties are resolved by model name so every successfully evaluated model gets a distinct rank.
+- **Pareto Rank:** first sort by nondominated front across available cluster scores; front 1 is best. Models on the same front are ordered by their unweighted mean active cluster score, then model name. `Pareto Front` remains in the per-experiment output to make the underlying partial order visible.
+- **Lexicographic Rank:** ascending score tuple in the priority order distribution/tails, downstream predictive usefulness, temporal structure, multivariate dependence when applicable, then discriminative score. Exact ties are resolved by model name.
 
-The sourced reference set includes TSGBench (reported TimeGAN and TimeVAE average ranks), the NeurIPS TSDiff paper (derived paired TimeGAN/TimeVAE ranks on downstream CRPS), the AAAI PaD-TS paper (derived values for Diffusion-TS, TimeGAN, and TimeVAE on Google Stocks), and a financial-data preprint (TimeGAN with generic-VAE and ARIMA-GARCH analogues). TSDiff is not treated as this project's DiffusionTS. The preprint and analogue ranks are contextual, not head-to-head claims about the project's implementations.
+The final rank for each model and setting is computed in two stages: calculate the three project ranks separately for each training-duration experiment, then take the median rank across available durations. Sort the models by that median and convert it to a unique 1..N ordinal rank within the setting. Missing model-duration results are omitted from the median; no score is imputed. The median-rank columns are retained in `rankings_by_segment.csv` for transparency.
 
-## Outputs
+## Literature evidence
 
-Running the notebook writes the following under `results_v2/`:
+Published comparisons do not rank the same five exact implementations on a shared benchmark. `literature_reference_ranks.csv` retains source-specific reported or derived ranks and match caveats. The exploratory **Research Evidence Rank** applies Pareto comparisons over normalized source ranks, comparing a pair only on sources that evaluated both. It then orders within Pareto fronts by the mean normalized rank; source coverage is shown. This is a partial-overlap synthesis, not a validated universal leaderboard. A model with no comparative published result, including StableGARCH in the selected sources, remains NA; lack of evidence is not treated as poor performance.
 
-- `rankings_per_experiment.csv`: per-model metrics, composite score and rank, Pareto front, lexicographic rank for each experiment.
-- `rankings_by_segment.csv`: means/ranks across training durations, separated by data configuration and frequency.
-- `scores_and_rankings.csv` and `project_vs_literature.csv`: every project model row with all three project ranking methods, source-specific literature-rank columns, and coverage caveats. No model is dropped merely because literature did not rank it.
-- `literature_sources.csv`, `literature_reference_ranks.csv`, and `literature_model_coverage.csv`: sources, source-level rank evidence, and explicit coverage for all five models.
-- `literature_aggregate_ranks.csv`: a clear note that cross-paper pooled ranks are not computed because the studies are not comparable enough for a universal aggregate.
+The four setting tables include the same broad research-evidence ordering for context; only project-specific ranks differ by frequency and dimensionality. Do not interpret a literature rank as a controlled head-to-head comparison with this project's implementation.
 
-The distribution plot uses common histogram bins over the pooled central 0.5th–99.5th percentile range, plus a separate full-range absolute-return tail-survival panel. This keeps the center readable without hiding extreme values.
+## Plots
 
-Direct literature-versus-project claims require matching data, implementation, split, and metric definitions; these tables provide context, not an industry leaderboard.
+All plot calls appear after metric and ranking tables. The summary figures are:
+
+- `final_rank_heatmaps.png`: research evidence and the three project ranks for all four settings.
+- `method_rank_transitions.png`: model rank changes across the composite, Pareto, and lexicographic methods.
+- `cluster_score_profiles.png`: median objective-cluster errors, showing why models rank differently.
+- `pareto_tradeoffs.png`: distribution/tails versus downstream predictive-usefulness errors; stars mark the median front-1 models.
+- `literature_evidence_map.png`: source-specific rank coverage and values, with NA where a source provides no result.
+
+## Output files
+
+All are written under `results_v2/`:
+
+- `rankings_per_experiment.csv`: metric values and ordinal project ranks per duration experiment.
+- `rankings_by_segment.csv`: median per-duration ranks and final ordinal ranks for all five models in all four settings.
+- `final_rankings_by_setting.csv`: the final four-setting comparison table, with research evidence, project ranks, source-specific evidence, and coverage caveats.
+- `literature_sources.csv`, `literature_reference_ranks.csv`, `literature_model_coverage.csv`, and `literature_evidence_pareto.csv`: source details and evidence coverage.
+- Summary plot PNGs under `results_v2/plots/`.
+
+The Gaussian reference is a normalization baseline, not a realism target or pass/fail threshold. All raw metric values remain in the experiment tables.
