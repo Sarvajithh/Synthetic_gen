@@ -2,16 +2,28 @@
   "experiment_id": "univariate_spy_daily_2_years",
   "data_config": "univariate_spy",
   "frequency": "daily",
-  "train_start": "2022-11-03 00:00:00",
-  "train_end": "2024-11-03 00:00:00",
-  "test_start": "2024-11-03 00:00:00",
-  "test_end": "2026-11-03 00:00:00",
+  "train_start": "2022-11-15 00:00:00",
+  "train_end": "2024-11-15 00:00:00",
+  "test_start": "2024-11-15 00:00:00",
+  "test_end": "2026-11-15 00:00:00",
   "window_size": 24,
   "window_stride": 1,
   "assets": [
     "SPY"
   ],
   "seed": 42,
-  "n_train_windows": 479,
+  "tuning_validation_fraction": 0.2,
+  "tuning_trials": 5,
+  "scoring_version": "benchmark-normalized-worst-cluster-v1",
+  "run_signature": "730394cb0f56a0f2f813bb4e9af6d390ada38842b271f82d7572a953796b4dd3",
+  "normalization_baseline": "iid multivariate Gaussian fitted to training observations",
+  "lexicographic_order": [
+    "distribution_tails",
+    "downstream_usefulness",
+    "temporal_structure",
+    "multivariate_dependence",
+    "discriminative_score"
+  ],
+  "n_train_windows": 480,
   "n_test_windows": 477
 }

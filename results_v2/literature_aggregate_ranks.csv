@@ -1,0 +1,2 @@
+status,reason
+not_computed,"Source ranks are not pooled across incompatible datasets, metrics, and candidate sets. Use literature_reference_ranks.csv."

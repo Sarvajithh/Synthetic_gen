@@ -1,0 +1,6 @@
+model,coverage,caveat
+TimeGAN,"Ranks in TSGBench, TSDiff, PaD-TS, and financial preprint","Different tasks, datasets, metrics, and candidate sets."
+TimeVAE,"Ranks in TSGBench, TSDiff, and PaD-TS; generic VAE analogue in financial preprint",Financial-preprint VAE is not identified as TimeVAE.
+DiffusionTS,PaD-TS paper reports Diffusion-TS comparator values,Architecture/name match; implementation and protocol need not match.
+StudentTARIMAGARCH,ARIMA-GARCH nearest-analogue rank in financial preprint,Not an exact Student-t model or necessarily matching ARIMA/GARCH orders.
+StableGARCH,No synthetic-generator comparative rank found,Stable GARCH method paper is not a generator leaderboard.

@@ -2,10 +2,10 @@
   "experiment_id": "multivariate_hourly_3_months",
   "data_config": "multivariate",
   "frequency": "hourly",
-  "train_start": "2026-02-03 00:00:00",
-  "train_end": "2026-05-03 00:00:00",
-  "test_start": "2026-05-03 00:00:00",
-  "test_end": "2026-11-03 00:00:00",
+  "train_start": "2026-02-15 00:00:00",
+  "train_end": "2026-05-15 00:00:00",
+  "test_start": "2026-05-15 00:00:00",
+  "test_end": "2026-11-15 00:00:00",
   "window_size": 24,
   "window_stride": 1,
   "assets": [
@@ -18,6 +18,18 @@
     "EEM"
   ],
   "seed": 42,
+  "tuning_validation_fraction": 0.2,
+  "tuning_trials": 5,
+  "scoring_version": "benchmark-normalized-worst-cluster-v1",
+  "run_signature": "ba555869db2d8026fb998c75dc6c90839edbae639cd673b23fb6081f9fb89e43",
+  "normalization_baseline": "iid multivariate Gaussian fitted to training observations",
+  "lexicographic_order": [
+    "distribution_tails",
+    "downstream_usefulness",
+    "temporal_structure",
+    "multivariate_dependence",
+    "discriminative_score"
+  ],
   "n_train_windows": 411,
   "n_test_windows": 866
 }

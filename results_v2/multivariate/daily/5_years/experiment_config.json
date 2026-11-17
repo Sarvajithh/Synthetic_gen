@@ -2,10 +2,10 @@
   "experiment_id": "multivariate_daily_5_years",
   "data_config": "multivariate",
   "frequency": "daily",
-  "train_start": "2019-11-03 00:00:00",
-  "train_end": "2024-11-03 00:00:00",
-  "test_start": "2024-11-03 00:00:00",
-  "test_end": "2026-11-03 00:00:00",
+  "train_start": "2019-11-15 00:00:00",
+  "train_end": "2024-11-15 00:00:00",
+  "test_start": "2024-11-15 00:00:00",
+  "test_end": "2026-11-15 00:00:00",
   "window_size": 24,
   "window_stride": 1,
   "assets": [
@@ -18,6 +18,18 @@
     "EEM"
   ],
   "seed": 42,
+  "tuning_validation_fraction": 0.2,
+  "tuning_trials": 5,
+  "scoring_version": "benchmark-normalized-worst-cluster-v1",
+  "run_signature": "14ec9e88d7b355118dda35f8b50099bbfb448c8b67a7b36ee23cd6755cd12ffc",
+  "normalization_baseline": "iid multivariate Gaussian fitted to training observations",
+  "lexicographic_order": [
+    "distribution_tails",
+    "downstream_usefulness",
+    "temporal_structure",
+    "multivariate_dependence",
+    "discriminative_score"
+  ],
   "n_train_windows": 1235,
   "n_test_windows": 477
 }

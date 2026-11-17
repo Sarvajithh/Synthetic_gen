@@ -1,0 +1,21 @@
+Data Configuration,Frequency,Model,Median Composite Rank,Median Pareto Rank,Median Lexicographic Rank,Experiments,Composite Rank,Pareto Rank,Lexicographic Rank
+univariate_spy,hourly,TimeGAN,3.0,3.0,1.0,3,4.0,4.0,1.0
+univariate_spy,hourly,TimeVAE,5.0,5.0,4.0,3,5.0,5.0,5.0
+univariate_spy,hourly,DiffusionTS,2.0,2.0,3.0,3,2.0,2.0,2.0
+univariate_spy,hourly,StudentTARIMAGARCH,1.0,1.0,3.0,3,1.0,1.0,4.0
+univariate_spy,hourly,StableGARCH,3.0,3.0,3.0,3,3.0,3.0,3.0
+univariate_spy,daily,TimeGAN,4.0,4.0,4.0,3,4.0,4.0,4.0
+univariate_spy,daily,TimeVAE,5.0,5.0,5.0,3,5.0,5.0,5.0
+univariate_spy,daily,DiffusionTS,3.0,3.0,2.0,3,3.0,3.0,2.0
+univariate_spy,daily,StudentTARIMAGARCH,1.0,1.0,1.0,3,1.0,1.0,1.0
+univariate_spy,daily,StableGARCH,2.0,2.0,3.0,3,2.0,2.0,3.0
+multivariate,hourly,TimeGAN,4.0,4.0,2.0,3,4.0,4.0,2.0
+multivariate,hourly,TimeVAE,5.0,5.0,4.0,3,5.0,5.0,4.0
+multivariate,hourly,DiffusionTS,1.0,2.0,1.0,3,1.0,2.0,1.0
+multivariate,hourly,StudentTARIMAGARCH,2.0,1.0,3.0,3,2.0,1.0,3.0
+multivariate,hourly,StableGARCH,3.0,3.0,5.0,3,3.0,3.0,5.0
+multivariate,daily,TimeGAN,4.0,3.0,2.0,3,4.0,4.0,2.0
+multivariate,daily,TimeVAE,5.0,5.0,5.0,3,5.0,5.0,5.0
+multivariate,daily,DiffusionTS,3.0,2.0,4.0,3,3.0,2.0,4.0
+multivariate,daily,StudentTARIMAGARCH,2.0,2.0,1.0,3,2.0,3.0,1.0
+multivariate,daily,StableGARCH,2.0,1.0,3.0,3,1.0,1.0,3.0
